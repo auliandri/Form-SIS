@@ -70,10 +70,11 @@ legend{font-weight:600;margin-bottom:6px;padding:0}
 <script>
 // ====== PENGATURAN ======
 var WA_NUMBER = "6281212752501"; // 081212752501 dalam format internasional
+var SHEET_URL = "https://script.google.com/macros/s/AKfycbw6S3ykEvY3l5ZdNS2cQ7I8Tc4kCTLtA3g9TryxO0J_syCa4c9dUehycpm5aaCeRj6geA/exec"; // tempel URL Web App Google Apps Script (berakhiran /exec)
 var ITEMS = [
   "Transmitter",
   "Receiver",
-  "Earphone",
+  "Earphone"
 ];
 // ========================
 
@@ -134,9 +135,22 @@ $("send").onclick = function () {
     "\n\nCeklis " + (mode === "ambil" ? "pengambilan" : "pengembalian") + ":\n" + lines;
   if (mode === "kembali") msg += "\n\nKeterangan: " + ($("ket").value.trim() || "Alat sudah dikembalikan.");
 
+  var rec = {
+    jenis: mode === "ambil" ? "Pengambilan" : "Pengembalian",
+    nama: d.nama, hp: d.hp, email: d.email, instansi: d.instansi,
+    ceklis: ITEMS.filter(function (t, i) { return boxes[i].checked; }).join(", "),
+    keterangan: mode === "kembali" ? $("ket").value.trim() : ""
+  };
   if (mode === "ambil") store(false, d); else store(false, null);
-  window.location.href = "https://wa.me/" + WA_NUMBER + "?text=" + encodeURIComponent(msg);
+  var url = "https://wa.me/" + WA_NUMBER + "?text=" + encodeURIComponent(msg);
+  $("send").disabled = true; $("send").textContent = "Mengirim...";
+  var post = SHEET_URL
+    ? fetch(SHEET_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(rec) }).catch(function () {})
+    : Promise.resolve();
+  Promise.race([post, new Promise(function (r) { setTimeout(r, 4000); })]).then(function () { window.location.href = url; });
 };
+
+window.addEventListener("pageshow", function () { $("send").disabled = false; setMode(store(true) ? "kembali" : "ambil"); });
 
 setMode(store(true) ? "kembali" : "ambil");
 </script>
