@@ -47,7 +47,7 @@ th{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.0
     </div>
     <div class="card wrap">
       <table>
-        <thead><tr><th>Hari</th><th>Tanggal</th><th>Waktu</th><th>Jenis</th><th>Nama</th><th>No. HP</th><th>Instansi</th><th>Alat</th><th>Keterangan</th></tr></thead>
+        <thead><tr><th>Nama</th><th>No. HP</th><th>Instansi</th><th>Pengambilan</th><th>Pengembalian</th><th>Alat</th><th>Keterangan</th></tr></thead>
         <tbody id="body"></tbody>
       </table>
       <p class="muted" id="empty" hidden>Belum ada data.</p>
@@ -56,7 +56,7 @@ th{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.0
 </main>
 
 <script>
-var SHEET_URL = "https://script.google.com/macros/s/AKfycbw6S3ykEvY3l5ZdNS2cQ7I8Tc4kCTLtA3g9TryxO0J_syCa4c9dUehycpm5aaCeRj6geA/exec"; // tempel URL Web App Google Apps Script (sama seperti di index.html)
+var SHEET_URL = ""; // tempel URL Web App Google Apps Script (sama seperti di index.html)
 var rows = [], pin = "";
 var $ = function (id) { return document.getElementById(id); };
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -75,20 +75,21 @@ function load() {
     .then(function () { $("go").disabled = false; });
 }
 
+// o = indeks awal kolom: 4 = pengambilan, 9 = pengembalian
+function cell(r, o) {
+  return r[o] ? "\u2713 " + esc(r[o + 1]) + ", " + esc(r[o + 2]) + " " + esc(String(r[o + 3]).slice(0, 5)) : '<span class="muted">Belum</span>';
+}
+
 function render() {
-  // Status: pengambilan terakhir per orang (nama + no. HP) yang belum diikuti pengembalian
-  var last = {};
-  rows.forEach(function (r) { last[(r[4] + "|" + r[5]).toLowerCase()] = r; });
-  var out = Object.keys(last).map(function (k) { return last[k]; }).filter(function (r) { return r[3] === "Pengambilan"; });
+  var out = rows.filter(function (r) { return r[4] && !r[9]; });
   $("sum").innerHTML = "<strong>Sedang dipinjam: " + out.length + "</strong>" +
-    (out.length ? '<div class="muted">' + out.map(function (r) { return esc(r[4]) + " (" + esc(r[7]) + ")"; }).join(", ") + "</div>" : "");
+    (out.length ? '<div class="muted">' + out.map(function (r) { return esc(r[0]) + " (" + esc(r[3]) + ")"; }).join(", ") + "</div>" : "");
 
   var q = $("q").value.toLowerCase();
   var list = rows.slice().reverse().filter(function (r) { return !q || r.join(" ").toLowerCase().indexOf(q) > -1; });
   $("body").innerHTML = list.map(function (r) {
-    return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td><td>" + esc(r[2]) + "</td>" +
-      '<td><span class="tag ' + (r[3] === "Pengambilan" ? "" : "k") + '">' + esc(r[3]) + "</span></td>" +
-      "<td>" + esc(r[4]) + "</td><td>" + esc(r[5]) + "</td><td>" + esc(r[7]) + "</td><td>" + esc(r[8]) + "</td><td>" + esc(r[9]) + "</td></tr>";
+    var alat = (r[8] ? "Ambil: " + esc(r[8]) : "") + (r[13] ? "<br>Kembali: " + esc(r[13]) : "");
+    return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td><td>" + esc(r[3]) + "</td><td>" + cell(r, 4) + "</td><td>" + cell(r, 9) + "</td><td>" + alat + "</td><td>" + esc(r[14]) + "</td></tr>";
   }).join("");
   $("empty").hidden = list.length > 0;
 }
