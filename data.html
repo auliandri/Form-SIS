@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Peminjaman Alat SIS</title>
+<style>
+:root{--bg:#f4f6f3;--card:#fff;--ink:#12302f;--muted:#5d706e;--line:#cfd9d6;--accent:#0f6b63;--accent-ink:#fff;--warn:#b4401f}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1a19;--card:#152826;--ink:#e6efed;--muted:#93a9a6;--line:#2b4441;--accent:#3cb4a6;--accent-ink:#06201d;--warn:#ff9a76}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;padding:16px}
+main{max-width:960px;margin:0 auto}
+h1{font-size:1.3rem;margin:8px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+input{padding:11px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--bg);color:var(--ink);width:100%}
+button{padding:11px 16px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:700;cursor:pointer}
+.row{display:flex;gap:8px}
+.err{color:var(--warn);margin:8px 0 0}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.8rem;font-weight:600;border:1px solid var(--accent);color:var(--accent)}
+.tag.k{border-color:var(--muted);color:var(--muted)}
+.muted{color:var(--muted)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Data Peminjaman Alat SIS</h1>
+
+  <div class="card" id="login">
+    <div class="row">
+      <input type="password" id="pin" placeholder="PIN" autocomplete="current-password">
+      <button id="go">Buka</button>
+    </div>
+    <div class="err" id="err" role="alert"></div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="card" id="sum"></div>
+    <div class="card row">
+      <input type="search" id="q" placeholder="Cari nama, instansi, tanggal...">
+      <button id="reload">Muat ulang</button>
+    </div>
+    <div class="card wrap">
+      <table>
+        <thead><tr><th>Hari</th><th>Tanggal</th><th>Waktu</th><th>Jenis</th><th>Nama</th><th>No. HP</th><th>Instansi</th><th>Alat</th><th>Keterangan</th></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+      <p class="muted" id="empty" hidden>Belum ada data.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+var SHEET_URL = "https://script.google.com/macros/s/AKfycbw6S3ykEvY3l5ZdNS2cQ7I8Tc4kCTLtA3g9TryxO0J_syCa4c9dUehycpm5aaCeRj6geA/exec"; // tempel URL Web App Google Apps Script (sama seperti di index.html)
+var rows = [], pin = "";
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+function load() {
+  $("err").textContent = "";
+  if (!SHEET_URL) { $("err").textContent = "SHEET_URL belum diisi di data.html."; return; }
+  $("go").disabled = true;
+  fetch(SHEET_URL + "?pin=" + encodeURIComponent(pin))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (j.error) { $("err").textContent = j.error; return; }
+      rows = j.rows; $("login").hidden = true; $("app").hidden = false; render();
+    })
+    .catch(function () { $("err").textContent = "Gagal memuat data. Cek URL dan koneksi."; })
+    .then(function () { $("go").disabled = false; });
+}
+
+function render() {
+  // Status: pengambilan terakhir per orang (nama + no. HP) yang belum diikuti pengembalian
+  var last = {};
+  rows.forEach(function (r) { last[(r[4] + "|" + r[5]).toLowerCase()] = r; });
+  var out = Object.keys(last).map(function (k) { return last[k]; }).filter(function (r) { return r[3] === "Pengambilan"; });
+  $("sum").innerHTML = "<strong>Sedang dipinjam: " + out.length + "</strong>" +
+    (out.length ? '<div class="muted">' + out.map(function (r) { return esc(r[4]) + " (" + esc(r[7]) + ")"; }).join(", ") + "</div>" : "");
+
+  var q = $("q").value.toLowerCase();
+  var list = rows.slice().reverse().filter(function (r) { return !q || r.join(" ").toLowerCase().indexOf(q) > -1; });
+  $("body").innerHTML = list.map(function (r) {
+    return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td><td>" + esc(r[2]) + "</td>" +
+      '<td><span class="tag ' + (r[3] === "Pengambilan" ? "" : "k") + '">' + esc(r[3]) + "</span></td>" +
+      "<td>" + esc(r[4]) + "</td><td>" + esc(r[5]) + "</td><td>" + esc(r[7]) + "</td><td>" + esc(r[8]) + "</td><td>" + esc(r[9]) + "</td></tr>";
+  }).join("");
+  $("empty").hidden = list.length > 0;
+}
+
+$("go").onclick = function () { pin = $("pin").value; load(); };
+$("pin").onkeydown = function (e) { if (e.key === "Enter") $("go").onclick(); };
+$("q").oninput = render;
+$("reload").onclick = load;
+</script>
+</body>
+</html>
