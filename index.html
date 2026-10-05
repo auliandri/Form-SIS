@@ -70,7 +70,7 @@ legend{font-weight:600;margin-bottom:6px;padding:0}
 <script>
 // ====== PENGATURAN ======
 var WA_NUMBER = "6281212752501"; // 081212752501 dalam format internasional
-var SHEET_URL = "https://script.google.com/macros/s/AKfycbw6S3ykEvY3l5ZdNS2cQ7I8Tc4kCTLtA3g9TryxO0J_syCa4c9dUehycpm5aaCeRj6geA/exec"; // tempel URL Web App Google Apps Script (berakhiran /exec)
+var SHEET_URL = ""; // tempel URL Web App Google Apps Script (berakhiran /exec)
 var ITEMS = [
   "Transmitter",
   "Receiver",
@@ -143,14 +143,25 @@ $("send").onclick = function () {
   };
   if (mode === "ambil") store(false, d); else store(false, null);
   var url = "https://wa.me/" + WA_NUMBER + "?text=" + encodeURIComponent(msg);
+  sent = true;
   $("send").disabled = true; $("send").textContent = "Mengirim...";
   var post = SHEET_URL
     ? fetch(SHEET_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(rec) }).catch(function () {})
     : Promise.resolve();
-  Promise.race([post, new Promise(function (r) { setTimeout(r, 4000); })]).then(function () { window.location.href = url; });
+  Promise.race([post, new Promise(function (r) { setTimeout(r, 4000); })]).then(function () { window.location.href = url; setTimeout(resetUI, 3000); });
 };
 
-window.addEventListener("pageshow", function () { $("send").disabled = false; setMode(store(true) ? "kembali" : "ambil"); });
+// Setelah kembali dari WhatsApp, tombol aktif lagi dan form pindah ke mode yang sesuai
+var sent = false;
+function resetUI() {
+  if (!sent) return;
+  sent = false;
+  $("send").disabled = false;
+  if (!store(true)) { ["nama", "hp", "email", "instansi", "ket"].forEach(function (id) { $(id).value = ""; }); }
+  setMode(store(true) ? "kembali" : "ambil");
+}
+document.addEventListener("visibilitychange", function () { if (!document.hidden) resetUI(); });
+window.addEventListener("pageshow", resetUI);
 
 setMode(store(true) ? "kembali" : "ambil");
 </script>
